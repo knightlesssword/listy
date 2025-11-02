@@ -183,13 +183,24 @@
             background: #f8f9fa;
         }
 
+        #share-link:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
         .edit-input {
             flex: 1;
             margin-left: 15px;
             padding: 8px 12px;
-            border: 2px solid #667eea;
+            border: 2px solid #e1e5e9;
             border-radius: 4px;
             font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         .empty-state {
@@ -213,24 +224,62 @@
             margin: 0;
         }
 
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
 
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background: #28a745;
+        }
+
+        .toast.error {
+            background: #dc3545;
+        }
+
+        .toast.info {
+            background: #17a2b8;
+        }
 
         @media (max-width: 600px) {
             .container {
                 margin: 10px;
                 padding: 20px;
             }
-            
+
             h1 {
                 font-size: 2rem;
             }
-            
+
             .add-item {
                 flex-direction: column;
             }
-            
+
             #add-btn {
                 align-self: stretch;
+            }
+
+            .toast {
+                left: 20px;
+                right: 20px;
+                max-width: none;
             }
         }
     </style>
@@ -255,6 +304,27 @@
         </div>
     </div>
     <script>
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 3000) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            // Remove toast after duration
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+
         // Base62 encoding for shorter URLs
         const BASE62_CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         
@@ -337,6 +407,7 @@
 
                 // Share functionality
                 document.getElementById('share-btn').addEventListener('click', () => this.shareList());
+                document.getElementById('share-link').addEventListener('focus', () => this.copyShareLinkOnFocus());
             }
 
             addItem() {
@@ -355,6 +426,7 @@
                 input.value = '';
                 this.saveToStorage();
                 this.render();
+                this.hideShareLinkIfVisible();
             }
 
             editItem(id) {
@@ -413,10 +485,11 @@
                 if (item) {
                     item.text = text;
                 }
-                
+
                 this.currentEditId = null;
                 this.saveToStorage();
                 this.render();
+                this.hideShareLinkIfVisible();
             }
 
             cancelEdit() {
@@ -430,6 +503,7 @@
                 this.checklist = this.checklist.filter(item => item.id !== id);
                 this.saveToStorage();
                 this.render();
+                this.hideShareLinkIfVisible();
             }
 
             toggleItem(id) {
@@ -438,6 +512,7 @@
                     item.completed = !item.completed;
                     this.saveToStorage();
                     this.render();
+                    this.hideShareLinkIfVisible();
                 }
             }
 
@@ -482,6 +557,34 @@
                 return div.innerHTML;
             }
 
+            copyShareLinkOnFocus() {
+                const shareLinkElement = document.getElementById('share-link');
+                const shareUrl = shareLinkElement.value;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        showToast('Share link copied to clipboard!', 'success');
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                        showToast('Failed to copy link. Please copy manually.', 'error');
+                    });
+                } else {
+                    shareLinkElement.select();
+                    try {
+                        document.execCommand('copy');
+                        showToast('Share link copied to clipboard!', 'success');
+                    } catch (err) {
+                        showToast('Failed to copy link. Please copy manually.', 'error');
+                    }
+                }
+            }
+
+            hideShareLinkIfVisible() {
+                const shareLinkElement = document.getElementById('share-link');
+                if (shareLinkElement.style.display === 'block') {
+                    shareLinkElement.style.display = 'none';
+                }
+            }
+
             saveToStorage() {
                 localStorage.setItem(`checklist_${this.listId}`, JSON.stringify(this.checklist));
             }
@@ -495,7 +598,7 @@
 
             shareList() {
                 if (this.checklist.length === 0) {
-                    alert('Cannot share an empty list. Add some items first!');
+                    showToast('Cannot share an empty list. Add some items first!', 'error');
                     return;
                 }
 
@@ -517,21 +620,25 @@
                 shareLinkElement.value = shareUrl;
                 shareLinkElement.style.display = 'block';
                 shareLinkElement.select();
-                
-                try {
-                    // Try to copy to clipboard
-                    document.execCommand('copy');
-                    alert('Share link copied to clipboard!');
-                } catch (err) {
-                    // Fallback: just show the link
-                    console.log('Share URL:', shareUrl);
-                    alert('Share link displayed below. Copy it to share!');
-                }
 
-                // Hide the link after 10 seconds
-                setTimeout(() => {
-                    shareLinkElement.style.display = 'none';
-                }, 10000);
+                // Try to copy to clipboard using modern API
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        showToast('Share link copied to clipboard!', 'success');
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                        showToast('Share link displayed below. Copy it manually!', 'info');
+                    });
+                } else {
+                    // Fallback for older browsers
+                    try {
+                        document.execCommand('copy');
+                        showToast('Share link copied to clipboard!', 'success');
+                    } catch (err) {
+                        console.log('Share URL:', shareUrl);
+                        showToast('Share link displayed below. Copy it manually!', 'info');
+                    }
+                }
             }
 
             loadFromURL() {
@@ -554,12 +661,12 @@
                             
                             // Show message that list was loaded
                             setTimeout(() => {
-                                alert('Shared list loaded! You can edit, add, or delete items. This is now your personal copy.');
+                                showToast('Shared list loaded! You can edit, add, or delete items. This is now your personal copy.', 'success');
                             }, 500);
                         }
                     } catch (err) {
                         console.error('Failed to load shared list:', err);
-                        alert('Failed to load shared list. It may be corrupted.');
+                        showToast('Failed to load shared list. It may be corrupted.', 'error');
                     }
                 }
             }
