@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listy</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Listy</h1>
+        <div class="add-item">
+            <input type="text" id="new-item-input" placeholder="Add new item..." maxlength="100">
+            <button id="add-btn">Add</button>
+        </div>
+        <ul id="checklist" class="checklist">
+            <!-- Items will be added here dynamically -->
+        </ul>
+        <div class="share-section">
+            <button id="share-btn">Share List</button>
+            <input type="text" id="share-link" readonly style="display: none;">
+        </div>
+        <div class="footer">
+            <p>Made with ♥ by knightlesssword</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
