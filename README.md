@@ -20,8 +20,8 @@ Simply open `index.html` in your browser - it's completely self-contained with a
 ## 📁 Project Structure
 
 ```
-checklist/
-├── index.html          # Complete self-contained application
+listy
+├── /v{n}/index.html          # Complete self-contained application
 └── README.md           # This file
 └── LICENSE           # MIT License
 ```
