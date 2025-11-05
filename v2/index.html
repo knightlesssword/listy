@@ -369,31 +369,26 @@
                 this.checklist = [];
                 this.currentEditId = null;
                 this.listId = null;
+                this.isShared = false;
                 this.init();
             }
 
             init() {
                 // Check for shared data first
                 const hasSharedData = this.loadFromURL();
+
+                if (!hasSharedData) {
+                    this.generateListId();
+                    this.loadFromStorage();
+                }
                 
                 this.render();
                 this.bindEvents();
             }
 
             generateListId() {
-                // Check if we have a list ID in URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const urlListId = urlParams.get('list');
-                
-                if (urlListId) {
-                    this.listId = urlListId;
-                } else {
-                    // Generate unique ID for this user
-                    this.listId = 'list_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                    
-                    // Update URL without params
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
+                // Generate unique ID for this user
+                this.listId = 'list_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             }
 
 
@@ -586,7 +581,27 @@
             }
 
             saveToStorage() {
-                localStorage.setItem(`checklist_${this.listId}`, JSON.stringify(this.checklist));
+                if (this.isShared) {
+                    this.updateURL();
+                } else {
+                    localStorage.setItem(`checklist_${this.listId}`, JSON.stringify(this.checklist));
+                }
+            }
+
+            updateURL() {
+                const shareData = {
+                    title: 'Listy',
+                    items: this.checklist.map(item => ({
+                        text: item.text,
+                        completed: item.completed
+                    }))
+                };
+
+                const jsonData = JSON.stringify(shareData);
+                const encodedData = encodeBase62(jsonData);
+                const newUrl = `${window.location.origin}${window.location.pathname}?l=${encodedData}`;
+
+                window.history.replaceState({}, document.title, newUrl);
             }
 
             loadFromStorage() {
@@ -653,22 +668,21 @@
                                 ...item,
                                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
                             }));
-                            
-                            // Clear URL to avoid confusion and switch to personal list
-                            this.generateListId();
-                            this.saveToStorage();
-                            window.history.replaceState({}, document.title, window.location.pathname);
-                            
+                            this.isShared = true;
+
                             // Show message that list was loaded
                             setTimeout(() => {
-                                showToast('Shared list loaded! You can edit, add, or delete items. This is now your personal copy.', 'success');
+                                showToast('Shared list loaded! You can edit, add, or delete items.', 'success');
                             }, 500);
+
+                            return true;
                         }
                     } catch (err) {
                         console.error('Failed to load shared list:', err);
                         showToast('Failed to load shared list. It may be corrupted.', 'error');
                     }
                 }
+                return false;
             }
         }
 
